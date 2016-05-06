@@ -32,12 +32,6 @@ var app = http.createServer(function(req, res){
   .pipe(res);
 });
 
-describe('send.mime', function(){
-  it('should be exposed', function(){
-    assert(send.mime);
-  })
-})
-
 describe('send(file).pipe(res)', function(){
   it('should stream the file contents', function(done){
     request(app)
@@ -939,6 +933,18 @@ describe('send(file, options)', function(){
         .expect(403, done)
       })
 
+      it('should 403 for dotfile in directory', function (done) {
+        request(createServer({dotfiles: 'deny', root: fixtures}))
+        .get('/pets/.hidden')
+        .expect(403, done)
+      })
+
+      it('should 403 for dotfile in dotfile directory', function (done) {
+        request(createServer({dotfiles: 'deny', root: fixtures}))
+        .get('/.mine/.hidden')
+        .expect(403, done)
+      })
+
       it('should send files in root dotfile directory', function (done) {
         request(createServer({dotfiles: 'deny', root: path.join(fixtures, '.mine')}))
         .get('/name.txt')
@@ -1319,6 +1325,40 @@ describe('send(file, options)', function(){
         .get('/do..ts.txt')
         .expect(200, '...', done);
       })
+    })
+  })
+})
+
+describe('send.mime', function () {
+  it('should be exposed', function () {
+    assert.ok(send.mime)
+  })
+
+  describe('.default_type', function () {
+    before(function () {
+      this.default_type = send.mime.default_type
+    })
+
+    afterEach(function () {
+      send.mime.default_type = this.default_type
+    })
+
+    it('should change the default type', function (done) {
+      send.mime.default_type = 'text/plain'
+
+      request(createServer({root: fixtures}))
+      .get('/nums')
+      .expect('Content-Type', 'text/plain; charset=UTF-8')
+      .expect(200, done)
+    })
+
+    it('should not add Content-Type for undefined default', function (done) {
+      send.mime.default_type = undefined
+
+      request(createServer({root: fixtures}))
+      .get('/nums')
+      .expect(shouldNotHaveHeader('Content-Type'))
+      .expect(200, done)
     })
   })
 })
